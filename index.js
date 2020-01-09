@@ -25,41 +25,56 @@ const notes = [
   [523, 8],
   [0, 16],
   [783, 16],
-  [659, 4]
+  [659, 4],
 ];
 
-notes.reverse(); // reverse so we can use pop instead of shift for perf reasons probs
-
 btn.addEventListener('mousedown', () => {
-  playMelody();
+  playMelody(0)();
 });
 
-function playMelody() {
-  if (notes.length > 0) {
-    note = notes.pop();
-    playNote(note[0], 256/(note[1]*tempo), playMelody);
-  }
+function playMelody(cursor) {
+  return function () {
+    const note = notes[cursor];
+
+    if (cursor === notes.length - 1) {
+      return;
+    }
+
+    playNote(note[0] / 4, 256 / (note[1] * tempo), playMelody(cursor + 1));
+  };
 }
 
 // /////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////////////////////////////////////////////
+const audioCtx = new AudioContext(); // will give us a warning, but doesn't matter
+
+//set up the different audio nodes we will use for the app
+var analyser = audioCtx.createAnalyser();
+var distortion = audioCtx.createWaveShaper();
+var gainNode = audioCtx.createGain();
+var biquadFilter = audioCtx.createBiquadFilter();
+var convolver = audioCtx.createConvolver();
+
+// Create an impulse response and set up the convolver
+const impulseBuffer = impulseResponse(audioCtx, 4, 4, false);
+// The convolver is going to give us the mega reverb
+convolver.buffer = impulseBuffer;
+
+// Manipulate the Biquad filter
+
+biquadFilter.type = "lowpass";
+biquadFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+biquadFilter.gain.setValueAtTime(25, audioCtx.currentTime);
 
 function playNote(frequency, duration, callback) {
-  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  console.log('doing it');
 
   /** @type OscillatorNode */
   const oscillator = audioCtx.createOscillator();
 
   oscillator.type = 'square';
   oscillator.frequency.value = frequency;
-
-  //set up the different audio nodes we will use for the app
-  var analyser = audioCtx.createAnalyser();
-  var distortion = audioCtx.createWaveShaper();
-  var gainNode = audioCtx.createGain();
-  var biquadFilter = audioCtx.createBiquadFilter();
-  var convolver = audioCtx.createConvolver();
 
   // connect the nodes together
   oscillator.connect(analyser);
@@ -68,17 +83,6 @@ function playNote(frequency, duration, callback) {
   biquadFilter.connect(convolver);
   convolver.connect(gainNode);
   gainNode.connect(audioCtx.destination);
-
-  // Create an impulse response and set up the convolver
-  const impulseBuffer = impulseResponse(audioCtx, 4, 4, false);
-  // The convolver is going to give us the mega reverb
-  convolver.buffer = impulseBuffer;
-
-  // Manipulate the Biquad filter
-
-  biquadFilter.type = "lowpass";
-  biquadFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
-  biquadFilter.gain.setValueAtTime(25, audioCtx.currentTime);
 
   oscillator.start();
   oscillator.stop(audioCtx.currentTime + duration);
