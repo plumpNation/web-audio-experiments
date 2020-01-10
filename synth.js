@@ -68,8 +68,6 @@ biquadFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
 biquadFilter.gain.setValueAtTime(25, audioCtx.currentTime);
 
 function playNote(frequency, duration, callback) {
-  console.log('doing it');
-
   /** @type OscillatorNode */
   const oscillator = audioCtx.createOscillator();
 
@@ -83,6 +81,8 @@ function playNote(frequency, duration, callback) {
   biquadFilter.connect(convolver);
   convolver.connect(gainNode);
   gainNode.connect(audioCtx.destination);
+
+  convolver.normalize = true;
 
   oscillator.start();
   oscillator.stop(audioCtx.currentTime + duration);
