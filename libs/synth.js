@@ -1,123 +1,69 @@
-const btn = document.querySelector('#play');
+import { store } from './rootReducer'
+import { impulseResponse } from './synth/helpers'
 
-const tempo = 100;
+const audioCtx = new window.AudioContext()
 
-const notes = [
-  [659, 4],
-  [659, 4],
-  [659, 4],
-  [523, 8],
-  [0, 16],
-  [783, 16],
-  [659, 4],
-  [523, 8],
-  [0, 16],
-  [783, 16],
-  [659, 4],
-  [0, 4],
-  [987, 4],
-  [987, 4],
-  [987, 4],
-  [1046, 8],
-  [0, 16],
-  [783, 16],
-  [622, 4],
-  [523, 8],
-  [0, 16],
-  [783, 16],
-  [659, 4],
-];
-
-btn.addEventListener('mousedown', () => {
-  playMelody(0)();
-});
-
-function playMelody(cursor) {
-  return function () {
-    const note = notes[cursor];
-
-    if (cursor === notes.length - 1) {
-      return;
-    }
-
-    playNote(note[0] / 4, 256 / (note[1] * tempo), playMelody(cursor + 1));
-  };
-}
-
-// /////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////////////////////////////////////////////////
-// /////////////////////////////////////////////////////////////////////////////
-const audioCtx = new AudioContext(); // will give us a warning, but doesn't matter
-
-//set up the different audio nodes we will use for the app
-var analyser = audioCtx.createAnalyser();
-var distortion = audioCtx.createWaveShaper();
-var gainNode = audioCtx.createGain();
-var biquadFilter = audioCtx.createBiquadFilter();
-var convolver = audioCtx.createConvolver();
+// set up the different audio nodes we will use for the app
+var analyser = audioCtx.createAnalyser()
+var distortion = audioCtx.createWaveShaper()
+var gainNode = audioCtx.createGain()
+var biquadFilter = audioCtx.createBiquadFilter()
+var convolver = audioCtx.createConvolver()
 
 // Create an impulse response and set up the convolver
-const impulseBuffer = impulseResponse(audioCtx, 4, 4, false);
+const impulseBuffer = impulseResponse(audioCtx, 4, 4, false)
 // The convolver is going to give us the mega reverb
-convolver.buffer = impulseBuffer;
+convolver.buffer = impulseBuffer
 
 // Manipulate the Biquad filter
 
-biquadFilter.type = "lowpass";
-biquadFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
-biquadFilter.gain.setValueAtTime(25, audioCtx.currentTime);
+biquadFilter.type = 'lowpass'
+biquadFilter.frequency.setValueAtTime(1000, audioCtx.currentTime)
+biquadFilter.gain.setValueAtTime(25, audioCtx.currentTime)
 
-function playNote(frequency, duration, callback) {
+const playNote = ({ frequency, velocity }) => {
   /** @type OscillatorNode */
-  const oscillator = audioCtx.createOscillator();
+  const oscillator = audioCtx.createOscillator()
 
-  oscillator.type = 'square';
-  oscillator.frequency.value = frequency;
+  oscillator.type = 'square'
+  oscillator.frequency.value = frequency
 
   // connect the nodes together
-  oscillator.connect(analyser);
-  analyser.connect(distortion);
-  distortion.connect(biquadFilter);
-  biquadFilter.connect(convolver);
-  convolver.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
+  oscillator.connect(analyser)
+  analyser.connect(distortion)
+  distortion.connect(biquadFilter)
+  biquadFilter.connect(convolver)
+  convolver.connect(gainNode)
+  gainNode.connect(audioCtx.destination)
 
-  convolver.normalize = true;
+  gainNode.gain.setValueAtTime(velocity * 0.01, audioCtx.currentTime)
+  convolver.normalize = true
 
-  oscillator.start();
-  oscillator.stop(audioCtx.currentTime + duration);
-  oscillator.onended = callback;
+  oscillator.start()
+
+  return oscillator
 }
 
-/**
- * It's in stereo too!
- *
- * Thanks to https://stackoverflow.com/users/1789439/cwilso
- * @see https://stackoverflow.com/questions/22525934/connecting-convolvernode-to-an-oscillatornode-with-the-web-audio-the-simple-wa
- *
- * @param {AudioContext} audioCtx
- * @param {number} duration
- * @param {number} decay
- * @param {boolean} reverse
- * @returns {AudioBuffer}
- */
-function impulseResponse( audioCtx, duration, decay, reverse ) {
-  const sampleRate = audioCtx.sampleRate;
-  const length = sampleRate * duration;
-  const impulse = audioCtx.createBuffer(2, length, sampleRate);
-  const impulseL = impulse.getChannelData(0);
-  const impulseR = impulse.getChannelData(1);
+const currentOscillators = {}
 
-  if (!decay) {
-    decay = 2.0;
-  }
+store.subscribe(() => {
+  const activeNotes = store.getState().activeNotes
+  const activeKeys = Object.keys(activeNotes)
+  const currentKeys = Object.keys(currentOscillators)
 
-  for (let i = 0; i < length; i += 1) {
-    const n = reverse ? length - i : i;
+  const allKeys = [...new Set(
+    activeKeys.concat(currentKeys)
+  )]
 
-    impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
-    impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
-  }
+  allKeys.forEach(key => {
+    // activeKeys will not include the notes that are current but now released
+    if (!activeNotes[key]) {
+      currentOscillators[key] && currentOscillators[key].stop()
+      currentOscillators[key] = null
+    } else {
+      currentOscillators[key] = playNote(activeNotes[key])
+    }
+  })
 
-  return impulse;
-}
+  console.log(currentOscillators)
+})
