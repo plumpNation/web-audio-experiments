@@ -1,0 +1,22 @@
+{
+  "name": "web-audio",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:plumpNation/web-audio-experiments.git",
+  "author": "Gavin King <plumpnation@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "redux": "^4.0.5",
+    "redux-devtools-extension": "^2.13.8",
+    "redux-observable": "^1.2.0",
+    "rxjs": "6.5.4",
+    "standard": "^14.3.1"
+  },
+  "devDependencies": {
+    "parcel": "2.0.0-alpha.3.2"
+  },
+  "scripts": {
+    "build": "parcel build index.html",
+    "start": "parcel serve index.html"
+  }
+}
