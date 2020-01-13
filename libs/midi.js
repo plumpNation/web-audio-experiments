@@ -62,16 +62,17 @@ function doTheThingWithTheMessage (MIDIMessage) {
   console.log(MIDIMessage)
 
   switch (command) {
-    case NOTE_ON:
+    case NOTE_ON: {
       const frequency = frequencyFromMIDINote(note)
 
       store.dispatch(noteOn({ note, frequency, velocity }))
 
-      break;
+      break
+    }
 
     case NOTE_OFF:
       store.dispatch(noteOff(note))
 
-      break;
+      break
   }
 }
